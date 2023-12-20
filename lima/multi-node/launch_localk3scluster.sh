@@ -220,6 +220,6 @@ echo "Updating localk3s kube configs: "
 echo -e "...Completed"
 
 # update /etc/hosts value for name based access
-echo "Updating /etc/host entires"
-"${script_dir}"/../update_etc_hosts.sh
-echo -e "...Completed"
+# echo "Updating /etc/host entires"
+# "${script_dir}"/../update_etc_hosts.sh
+# echo -e "...Completed"
