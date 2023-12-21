@@ -15,18 +15,19 @@ networks:
 #      -----END CERTIFICATE-----
 
 # force ARM systems to run a VM with a foreign architecture
-# arch: "x86_64"
+arch: "x86_64"
+mountType: "9p"
 
 # enable fast mode 2
 # reference: https://github.com/lima-vm/lima/blob/master/docs/multi-arch.md#fast-mode-2
-vmType: "vz"
-mountType: "virtiofs"
-rosetta:
-  # Enable Rosetta for Linux.
-  # Hint: try `softwareupdate --install-rosetta` if Lima gets stuck at `Installing rosetta...`
-  enabled: true
-  # Register rosetta to /proc/sys/fs/binfmt_misc
-  binfmt: true
+# vmType: "vz"
+# mountType: "virtiofs"
+# rosetta:
+#   # Enable Rosetta for Linux.
+#   # Hint: try `softwareupdate --install-rosetta` if Lima gets stuck at `Installing rosetta...`
+#   enabled: true
+#   # Register rosetta to /proc/sys/fs/binfmt_misc
+#   binfmt: true
 
 images:
   # Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
@@ -50,57 +51,57 @@ containerd:
   user: false
 
 provision:
-- mode: system
-  script: |
-    #!/bin/sh
+  - mode: system
+    script: |
+      #!/bin/sh
 
-    # Install dependencies for Longhorn
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    nfs-common open-iscsi
+      # Install dependencies for Longhorn
+      apt-get update && \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      nfs-common open-iscsi
 
-    # Enable/Start iscsid and nfs-common
-    #
-    # nfs-common is masked see: https://blog.ruanbekker.com/blog/2017/12/09/unmask-a-masked-service-in-systemd/
-    rm /lib/systemd/system/nfs-common.service
-    systemctl daemon-reload
-    sysctl --system
-    systemctl start nfs-common
-    systemctl enable nfs-common
-    systemctl start iscsid
-    systemctl enable iscsid
+      # Enable/Start iscsid and nfs-common
+      #
+      # nfs-common is masked see: https://blog.ruanbekker.com/blog/2017/12/09/unmask-a-masked-service-in-systemd/
+      rm /lib/systemd/system/nfs-common.service
+      systemctl daemon-reload
+      sysctl --system
+      systemctl start nfs-common
+      systemctl enable nfs-common
+      systemctl start iscsid
+      systemctl enable iscsid
 
-    cat << EOF > /etc/sysctl.d/90-k3s.conf
-    net.ipv4.ip_forward=1
-    net.ipv4.conf.all.forwarding=1
-    net.ipv6.conf.all.forwarding=1
-    EOF
+      cat << EOF > /etc/sysctl.d/90-k3s.conf
+      net.ipv4.ip_forward=1
+      net.ipv4.conf.all.forwarding=1
+      net.ipv6.conf.all.forwarding=1
+      EOF
 
-    mkdir -p /etc/rancher/k3s
+      mkdir -p /etc/rancher/k3s
 
-    MY_EXT_IP=$(ip -4 -o addr show lima0 | awk '{ print $4}' | awk -F/ '{print $1}')
+      MY_EXT_IP=$(ip -4 -o addr show lima0 | awk '{ print $4}' | awk -F/ '{print $1}')
 
-    cat << EOF > /etc/rancher/k3s/config.yaml
-    ---
-    node-ip: ${MY_EXT_IP}
-    EOF
+      cat << EOF > /etc/rancher/k3s/config.yaml
+      ---
+      node-ip: ${MY_EXT_IP}
+      EOF
 
-    cat << EOF > /etc/rancher/k3s/registries.yaml
-    ---
-    EOF
+      cat << EOF > /etc/rancher/k3s/registries.yaml
+      ---
+      EOF
 
-    # create kubeconfig from ENV variable
-    echo "${S1_KUBECONFIG}" > /etc/rancher/k3s/k3s.yaml
+      # create kubeconfig from ENV variable
+      echo "${S1_KUBECONFIG}" > /etc/rancher/k3s/k3s.yaml
 
-    # install K3s
-    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.27.3+k3s1 sh -s agent \
-    --node-external-ip="${MY_EXT_IP}" --flannel-iface="lima0"
+      # install K3s
+      curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.27.3+k3s1 sh -s agent \
+      --node-external-ip="${MY_EXT_IP}" --flannel-iface="lima0"
 
 probes:
-- script: |
-    #!/bin/bash
-    set -eux -o pipefail
-    if ! timeout 30s bash -c "systemctl is-active --quiet k3s-agent.service"; then
-      echo >&2 "k3s-agent is not running yet"
-      exit 1
-    fi
+  - script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 30s bash -c "systemctl is-active --quiet k3s-agent.service"; then
+        echo >&2 "k3s-agent is not running yet"
+        exit 1
+      fi
