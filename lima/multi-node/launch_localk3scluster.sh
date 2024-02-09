@@ -20,35 +20,43 @@ Where:
   -t K3s cluster type multi-(agent[default]/server)
   -v K3s install version
 EOF
-   exit 1
+  exit 1
 }
 
 # set default values
-vm_cpus="1"
-vm_memory="4"
-vm_disk="20"
+vm_cpus="4"
+vm_memory="8"
+vm_disk="50"
 k3s_version="v1.27.3+k3s1"
 k3s_cluster_type="agent"
-k3s_cluster_size=3
+k3s_cluster_size=4
 
 while getopts "c:d:hm:s:t:v:" arg; do
   case "${arg}" in
-    c)
-      vm_cpus=${OPTARG} ;;
-    d)
-      vm_disk=${OPTARG} ;;
-    h)
-      usage ;;
-    m)
-      vm_memory=${OPTARG} ;;
-    s)
-      k3s_cluster_size=${OPTARG} ;;
-    t)
-      k3s_cluster_type=${OPTARG} ;;
-    v)
-      k3s_version=${OPTARG} ;;
-    *)
-      usage ;;
+  c)
+    vm_cpus=${OPTARG}
+    ;;
+  d)
+    vm_disk=${OPTARG}
+    ;;
+  h)
+    usage
+    ;;
+  m)
+    vm_memory=${OPTARG}
+    ;;
+  s)
+    k3s_cluster_size=${OPTARG}
+    ;;
+  t)
+    k3s_cluster_type=${OPTARG}
+    ;;
+  v)
+    k3s_version=${OPTARG}
+    ;;
+  *)
+    usage
+    ;;
   esac
 done
 
@@ -63,7 +71,7 @@ if ! [[ "${k3s_cluster_size}" =~ ^[0-9]+$ ]]; then
 fi
 
 # set script_dir location
-script_dir=$(dirname -- "$( readlink -f -- "$0"; )")
+script_dir=$(dirname -- "$(readlink -f -- "$0")")
 
 if [[ "${k3s_cluster_type}" == *"server"* ]]; then
   node_seq_start="2"
@@ -76,7 +84,7 @@ if [[ "${k3s_cluster_type}" == *"server"* ]]; then
 else
   node_seq_start="1"
   # subtract 1 from the total number of nodes from $1 argument input
-  node_seq_end="$((k3s_cluster_size-1))"
+  node_seq_end="$((k3s_cluster_size - 1))"
   lima_initial_template="${script_dir}/localk3sserver.yaml"
   lima_subsequent_template="${script_dir}/localk3sagent.yaml"
   echo "*********************************************************************************"
@@ -99,9 +107,9 @@ check_required_cmds "${cmd_list[@]}"
 # check if a localk3s single-node cluster exists
 if limactl list --log-level error | grep -qe 'localk3sserver1'; then
   if ! limactl list --log-level error | grep -qe 'localk3sserver2\|localk3sserver3\|localk3sagent'; then
-      echo "Aborting: A single-node localk3s cluster currently exits"
-      echo "Please destroy the current localk3s cluster and re-run"
-      exit 1
+    echo "Aborting: A single-node localk3s cluster currently exits"
+    echo "Please destroy the current localk3s cluster and re-run"
+    exit 1
   elif [ "${k3s_cluster_type}" == "server" ]; then
     # check to see if a cluster with agent nodes exists
     if limactl list --log-level error | grep -qe "localk3sagent"; then
@@ -142,7 +150,8 @@ else
   echo "Creating localk3sserver1 vm instance: "
   # start spinnger to show status
   start_spinner
-  if ! output=$(limactl start --name=localk3sserver1 --set=".cpus = ${vm_cpus} | .memory = \"${vm_memory}GiB\" | .disk = \"${vm_disk}GiB\" | .env.INSTALL_K3S_VERSION = \"${k3s_version}\"" --tty=false "${lima_initial_template}" 2>&1); then
+  # server does not schedule any pods, therefore we use hardcoded resources here
+  if ! output=$(limactl start --name=localk3sserver1 --set=".cpus = 2 | .memory = \"2GiB\" | .disk = \"20GiB\" | .env.INSTALL_K3S_VERSION = \"${k3s_version}\"" --tty=false "${lima_initial_template}" 2>&1); then
     stop_spinner
     echo "Failed to start localk3sserver1 vm instance"
     echo "${output}"
@@ -202,7 +211,7 @@ done
 # Reference: https://github.com/k3s-io/k3s/issues/1289
 # where @ is an arbitrary placeholder symbol that xargs will use to inject the ouput from grep, one line at a time (-n1)
 for node in $(limactl shell localk3sserver1 kubectl get nodes -o name | grep 'localk3sagent'); do
-  if ! output=$(xargs -n1 -I@ limactl shell localk3sserver1 kubectl label @ node-role.kubernetes.io/agent=true <<< "${node}" 2>&1); then
+  if ! output=$(xargs -n1 -I@ limactl shell localk3sserver1 kubectl label @ node-role.kubernetes.io/agent=true <<<"${node}" 2>&1); then
     echo "Failed to add label node-role.kubernetes.io to localk3sagent${i}"
     echo "${output}"
   else
