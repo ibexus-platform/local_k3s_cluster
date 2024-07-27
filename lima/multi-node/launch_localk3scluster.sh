@@ -24,7 +24,7 @@ EOF
 }
 
 # set default values
-vm_cpus="4"
+vm_cpus="3"
 vm_memory="8"
 vm_disk="50"
 k3s_version="v1.27.3+k3s1"
@@ -151,7 +151,7 @@ else
   # start spinnger to show status
   start_spinner
   # server does not schedule any pods, therefore we use hardcoded resources here
-  if ! output=$(limactl start --name=localk3sserver1 --set=".cpus = 2 | .memory = \"2GiB\" | .disk = \"20GiB\" | .env.INSTALL_K3S_VERSION = \"${k3s_version}\"" --tty=false "${lima_initial_template}" 2>&1); then
+  if ! output=$(limactl start --name=localk3sserver1 --set=".cpus = 2 | .memory = \"4GiB\" | .disk = \"20GiB\" | .env.INSTALL_K3S_VERSION = \"${k3s_version}\"" --tty=false "${lima_initial_template}" 2>&1); then
     stop_spinner
     echo "Failed to start localk3sserver1 vm instance"
     echo "${output}"
